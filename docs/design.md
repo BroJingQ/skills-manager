@@ -252,8 +252,11 @@ for skill_path in "$SKILLS_DIR"/*; do
 
     echo "  检测结果: $type (置信度: $confidence%) - $reason"
 
-    # 3. 低置信度时询问用户
-    if [ "$confidence" -lt 80 ]; then
+    # 3. 根据置信度处理
+    # >=70: 高置信度，自动处理
+    # >=40: 中等置信度，自动处理
+    # <40:  低置信度，询问用户
+    if [ "$confidence" -lt 40 ]; then
         echo "  无法自动确定来源，请手动选择："
         echo "    [1] 这是我创建的 skill（local）"
         echo "    [2] 这是三方下载的 skill（remote）"
@@ -298,7 +301,7 @@ echo "✅ 导入完成"
 🔍 扫描 Skills 目录: /Users/admin/.claude/skills
 
 检查: my-awesome-tool
-  检测结果: unknown (置信度: 0%) - 无法识别来源
+  检测结果: unknown (置信度: 0%) - 无法识别来源 (remote信号:15)
   无法自动确定来源，请手动选择：
     [1] 这是我创建的 skill（local）
     [2] 这是三方下载的 skill（remote）
@@ -307,7 +310,11 @@ echo "✅ 导入完成"
   ✓ 已复制到 skills/local/my-awesome-tool
 
 检查: find-skills
-  检测结果: remote (置信度: 90%) - Git remote 指向官方仓库
+  检测结果: remote (置信度: 65%) - 标准 frontmatter 格式; 提到 Skills CLI 或官方来源; 文档内容完整
+  ✓ 已创建元数据
+
+检查: skill-creator
+  检测结果: remote (置信度: 70%) - 标准 frontmatter 格式; 文档内容完整; 包含开源许可证; 标准目录结构(5个)
   ✓ 已创建元数据
 
 ✅ 导入完成
@@ -403,12 +410,23 @@ Remote Skills（官方下载）:
 
 ```bash
 #!/bin/bash
+#
+# 检测 Skill 来源类型
+# 输出格式：置信度:类型:原因
+#
 
 detect_skill_source() {
-    local skill_path=$1
+    local skill_path="$1"
     local skill_name=$(basename "$skill_path")
+    local remote_score=0
+    local reasons=""
 
-    # 1. 检查本地标记文件
+    # 获取当前用户名（兼容 Windows 和 Unix）
+    local current_user="${USER:-${USERNAME:-$(whoami)}}"
+
+    # ========== Local 特征检测 ==========
+
+    # 1. 检查本地标记文件（最强 local 信号）
     if [ -f "$skill_path/.custom-skill" ]; then
         echo "100:local:本地标记文件 .custom-skill 存在"
         return
@@ -416,49 +434,113 @@ detect_skill_source() {
 
     # 2. 检查 SKILL.md 中的 author
     if [ -f "$skill_path/SKILL.md" ]; then
-        author=$(grep -i "^author:" "$skill_path/SKILL.md" | cut -d':' -f2 | tr -d ' ')
-        if [ "$author" = "me" ] || [ "$author" = "$USER" ]; then
-            echo "90:local:作者匹配当前用户 ($author)"
+        local author
+        author=$(grep -i "^author:" "$skill_path/SKILL.md" 2>/dev/null | cut -d':' -f2 | tr -d ' ' || echo "")
+        # 确保 author 非空且匹配当前用户
+        if [ -n "$author" ] && { [ "$author" = "me" ] || [ "$author" = "$current_user" ]; }; then
+            echo "95:local:作者匹配当前用户 ($author)"
             return
         fi
     fi
 
     # 3. 检查 git remote
     if [ -d "$skill_path/.git" ]; then
-        cd "$skill_path"
-        remote_url=$(git remote get-url origin 2>/dev/null || echo "")
+        local remote_url
+        remote_url=$(cd "$skill_path" && git remote get-url origin 2>/dev/null || echo "")
 
-        if echo "$remote_url" | grep -q "github.com/$(whoami)"; then
+        # 检查是否是用户自己的仓库
+        local git_user
+        git_user=$(git config --global user.name 2>/dev/null || echo "$current_user")
+
+        if [ -n "$git_user" ] && echo "$remote_url" | grep -qi "$git_user"; then
             echo "95:local:Git remote 指向个人仓库"
             return
         fi
 
-        if echo "$remote_url" | grep -qE "(anthropics|claude-code|claude|skills)"; then
-            echo "90:remote:Git remote 指向官方/社区仓库"
+        # 检查是否是官方/知名仓库
+        if echo "$remote_url" | grep -qiE "(anthropics|vercel-labs|github.com/(anthropics|vercel))"; then
+            echo "90:remote:Git remote 指向官方仓库"
             return
         fi
     fi
 
-    # 4. 检查已知三方来源特征
+    # 4. 检查是否是符号链接（指向本项目的 local skill）
+    if [ -L "$skill_path" ]; then
+        local link_target
+        link_target=$(readlink "$skill_path")
+        if echo "$link_target" | grep -q "$PROJECT_DIR"; then
+            echo "85:local:符号链接指向本项目"
+            return
+        fi
+    fi
+
+    # ========== Remote 特征检测（评分制）==========
+
+    # 5. 检查 SKILL.md 格式和内容
     if [ -f "$skill_path/SKILL.md" ]; then
-        if grep -q "source:.*github" "$skill_path/SKILL.md"; then
-            echo "80:remote:来源标记为 GitHub"
-            return
+        # 5.1 检查是否有标准 frontmatter（YAML 头部）
+        if head -10 "$skill_path/SKILL.md" | grep -q "^---$"; then
+            if head -10 "$skill_path/SKILL.md" | grep -q "^name:"; then
+                remote_score=$((remote_score + 25))
+                reasons="$reasons; 标准 frontmatter 格式"
+            fi
+        fi
+
+        # 5.2 检查是否提到 Skills CLI 或官方网址
+        if grep -qi "npx skills" "$skill_path/SKILL.md" || \
+           grep -qi "skills.sh" "$skill_path/SKILL.md" || \
+           grep -qi "github.com/anthropics" "$skill_path/SKILL.md"; then
+            remote_score=$((remote_score + 30))
+            reasons="$reasons; 提到 Skills CLI 或官方来源"
+        fi
+
+        # 5.3 检查内容长度和结构（remote skill 通常内容更完整）
+        local line_count
+        line_count=$(wc -l < "$skill_path/SKILL.md")
+        if [ "$line_count" -gt 50 ]; then
+            remote_score=$((remote_score + 10))
+            reasons="$reasons; 文档内容完整"
         fi
     fi
 
-    # 5. 无法确定
-    echo "0:unknown:无法识别来源"
-}
+    # 6. 检查开源许可证文件（remote skill 通常有 LICENSE）
+    if [ -f "$skill_path/LICENSE" ] || [ -f "$skill_path/LICENSE.txt" ] || [ -f "$skill_path/LICENSE.md" ]; then
+        remote_score=$((remote_score + 20))
+        reasons="$reasons; 包含开源许可证"
+    fi
 
-# 命令行入口
-if [ $# -eq 1 ]; then
-    detect_skill_source "$1"
-else
-    echo "用法: $0 <skill-path>"
-    exit 1
-fi
-```
+    # 7. 检查标准目录结构（remote skill 通常有标准子目录）
+    local standard_dirs=0
+    for dir in agents eval-viewer scripts assets references; do
+        if [ -d "$skill_path/$dir" ]; then
+            standard_dirs=$((standard_dirs + 1))
+        fi
+    done
+    if [ "$standard_dirs" -ge 2 ]; then
+        remote_score=$((remote_score + 15))
+        reasons="$reasons; 标准目录结构(${standard_dirs}个)"
+    fi
+
+    # ========== 综合判断 ==========
+
+    # 去除 reasons 开头的分号和空格
+    reasons=$(echo "$reasons" | sed 's/^; //')
+
+    # 高置信度 remote (>=70)
+    if [ "$remote_score" -ge 70 ]; then
+        echo "${remote_score}:remote:${reasons}"
+        return
+    fi
+
+    # 中等置信度 remote (>=40)
+    if [ "$remote_score" -ge 40 ]; then
+        echo "${remote_score}:remote:${reasons}"
+        return
+    fi
+
+    # 无法确定
+    echo "0:unknown:无法识别来源 (remote信号:${remote_score})"
+}
 
 ## Claude Code Prompts 设计
 
