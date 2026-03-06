@@ -1,0 +1,47 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2026-03-06",
+  "installedSkills": [
+    {
+      "name": "find-skills",
+      "source": "builtin",
+      "version": "latest",
+      "installedAt": "2026-03-06",
+      "description": "搜索和发现技能",
+      "agents": ["Claude Code", "Cursor"]
+    },
+    {
+      "name": "proxy-local",
+      "source": "builtin",
+      "version": "latest",
+      "installedAt": "2026-03-06",
+      "description": "本地代理管理",
+      "agents": ["Claude Code", "Cursor"]
+    },
+    {
+      "name": "skill-creator",
+      "source": "builtin",
+      "version": "latest",
+      "installedAt": "2026-03-06",
+      "description": "创建和管理技能",
+      "agents": ["Claude Code", "Cursor"]
+    }
+  ],
+  "wantedSkills": [
+    {
+      "name": "git-commit",
+      "source": "github/awesome-copilot",
+      "description": "GitHub 官方提交辅助技能"
+    },
+    {
+      "name": "my-pull-requests",
+      "source": "github/awesome-copilot",
+      "description": "PR 管理技能"
+    },
+    {
+      "name": "create-github-pull-request-from-specification",
+      "source": "github/awesome-copilot",
+      "description": "从规范创建 PR"
+    }
+  ]
+}
