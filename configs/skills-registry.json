@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "lastUpdated": "2026-03-07T02:02:00Z",
+  "lastUpdated": "2026-03-07T10:30:00Z",
   "skills": {
     "find-skills": {
       "type": "remote",
@@ -11,19 +11,37 @@
       "detectedAt": "2026-03-07T02:02:00Z",
       "confirmedByUser": true
     },
-    "skill-creator": {
+    "frontend-design": {
       "type": "remote",
-      "name": "skill-creator",
-      "description": "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, update or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.",
+      "name": "frontend-design",
+      "description": "Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when the user asks to build web components, pages, artifacts, posters, or applications (examples include websites, landing pages, dashboards, React components, HTML/CSS layouts, or when styling/beautifying any web UI). Generates creative, polished code and UI design that avoids generic AI aesthetics.",
       "source": "https://github.com/anthropics/skills",
-      "installCommand": "npx skills add https://github.com/anthropics/skills --skill skill-creator",
-      "detectedAt": "2026-03-07T02:02:00Z",
+      "installCommand": "npx skills add https://github.com/anthropics/skills --skill frontend-design",
+      "detectedAt": "2026-03-07T10:30:00Z",
+      "confirmedByUser": true
+    },
+    "planning-with-files": {
+      "type": "remote",
+      "name": "planning-with-files",
+      "description": "Implements Manus-style file-based planning to organize and track progress on complex tasks. Creates task_plan.md, findings.md, and progress.md. Use when asked to plan out, break down, or organize a multi-step project, research task, or any work requiring >5 tool calls. Supports automatic session recovery after /clear.",
+      "source": "https://github.com/anthropics/skills",
+      "installCommand": "npx skills add https://github.com/anthropics/skills --skill planning-with-files",
+      "detectedAt": "2026-03-07T10:30:00Z",
       "confirmedByUser": true
     },
     "proxy-local": {
       "type": "local",
       "name": "proxy-local",
       "description": "当用户需要开启、关闭或查看本地 Clash 代理状态时触发。包括 \"开启代理\"、\"关闭代理\"、\"代理状态\"、\"使用代理\"、\"不用代理\"、\"设置代理\"、\"取消代理\"等相关请求。",
+      "detectedAt": "2026-03-07T02:02:00Z",
+      "confirmedByUser": true
+    },
+    "skill-creator": {
+      "type": "remote",
+      "name": "skill-creator",
+      "description": "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, update or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.",
+      "source": "https://github.com/anthropics/skills",
+      "installCommand": "npx skills add https://github.com/anthropics/skills --skill skill-creator",
       "detectedAt": "2026-03-07T02:02:00Z",
       "confirmedByUser": true
     }
